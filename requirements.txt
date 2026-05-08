@@ -1,0 +1,11 @@
+openai-whisper
+moviepy
+transformers
+torch
+python-dotenv
+huggingface_hub
+fastapi
+uvicorn
+python-multipart
+pydantic
+requests

@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+__pycache__
+*.pyc
+videos/*
+audio/*
+transcripts/*
+frontend/node_modules
+frontend/dist
