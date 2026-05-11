@@ -7,7 +7,7 @@ interface TabSelectorProps {
 }
 
 const TabSelector: React.FC<TabSelectorProps> = ({ activeTab, onTabChange }) => {
-  const activeClass = "bg-[#F26A21] text-white shadow-button";
+  const activeClass = "bg-[#0a5791] text-white shadow-button";
   const inactiveClass =
     "bg-white text-[#6B7280] hover:text-[#0B1633] border border-[#E5E7EB]";
 
