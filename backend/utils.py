@@ -1,16 +1,55 @@
 import os
-from moviepy import VideoFileClip
+import sys
+import glob as glob_mod
+import shutil
 
-def extract_audio(video_path, audio_output_path):
-    """
-    Extracts audio from a video file and saves it as an mp3.
-    """
+
+def _find_ffmpeg() -> str:
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+
+    if sys.platform == "win32":
+        base = os.path.join(
+            os.environ.get("LOCALAPPDATA", ""),
+            "Microsoft", "WinGet", "Packages",
+            "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+        )
+        if os.path.isdir(base):
+            bins = glob_mod.glob(os.path.join(base, "ffmpeg-*", "bin", "ffmpeg.exe"))
+            if bins:
+                return bins[0]
+
+    return "ffmpeg"
+
+
+_FFMPEG_PATH = _find_ffmpeg()
+
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma", ".opus"}
+
+
+def get_audio_path(video_path, audio_dir="audio"):
+    """Extract audio from video, or return the path directly if already audio."""
+    os.makedirs(audio_dir, exist_ok=True)
+    ext = os.path.splitext(video_path)[1].lower()
+    base_name = os.path.splitext(os.path.basename(video_path))[0]
+
+    if ext in AUDIO_EXTENSIONS:
+        print(f"File is already audio ({ext}), skipping extraction")
+        return video_path
+
+    audio_path = os.path.join(audio_dir, f"{base_name}.mp3")
+
+    import moviepy.config as mpcfg
+
+    if _FFMPEG_PATH != "ffmpeg":
+        mpcfg.FFMPEG_BINARY = _FFMPEG_PATH
+
+    from moviepy import VideoFileClip
+
     print(f"Extracting audio from {video_path}...")
-    try:
-        video = VideoFileClip(video_path)
-        video.audio.write_audiofile(audio_output_path)
-        print(f"Audio saved to {audio_output_path}")
-        return audio_output_path
-    except Exception as e:
-        print(f"Error extracting audio: {e}")
-        return None
+    video = VideoFileClip(video_path)
+    video.audio.write_audiofile(audio_path)
+    video.close()
+    print(f"Audio saved to {audio_path}")
+    return audio_path

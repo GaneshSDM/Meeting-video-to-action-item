@@ -1,18 +1,14 @@
-# Backend Dockerfile
 FROM python:3.10-slim
 
-# Install ffmpeg for moviepy/whisper
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+COPY requirements-core.txt .
+RUN pip install --no-cache-dir -r requirements-core.txt
 
 COPY backend/ ./backend/
-COPY .env .
 
-# Create directories for processing
 RUN mkdir -p videos audio transcripts
 
 EXPOSE 8000

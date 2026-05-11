@@ -1,208 +1,251 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileVideo, Terminal, CheckCircle2, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
-
-interface JobStatus {
-  job_id: string;
-  status: string;
-  progress: number;
-  result?: string;
-  error?: string;
-}
+import React, { useState, useEffect } from "react";
+import { CheckCircle2, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import Logo from "./components/Logo";
+import TabSelector from "./components/TabSelector";
+import SharePointInput from "./components/SharePointInput";
+import FileUpload from "./components/FileUpload";
+import LogTerminal from "./components/LogTerminal";
+import ResultsPanel from "./components/ResultsPanel";
+import {
+  uploadVideo,
+  analyzeSharePointUrl,
+  getJobStatus,
+  createLogStream,
+} from "./services/api";
+import type { JobStatus } from "./types";
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<"sharepoint" | "upload">("sharepoint");
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+    if (!jobId) return;
+    if (status?.status === "completed" || status?.status === "failed") return;
 
-  useEffect(() => {
-    let interval: number;
-    if (jobId && status?.status !== 'completed' && status?.status !== 'failed') {
-      interval = window.setInterval(async () => {
-        try {
-          const res = await fetch(`/api/status/${jobId}`);
-          const data = await res.json();
-          setStatus(data);
-        } catch (err) {
-          console.error('Failed to fetch status', err);
+    const interval = window.setInterval(async () => {
+      try {
+        const data = await getJobStatus(jobId);
+        setStatus(data);
+        if (data.status === "completed" || data.status === "failed") {
+          setIsProcessing(false);
         }
-      }, 2000);
-    }
+      } catch (err) {
+        console.error("Failed to fetch status", err);
+      }
+    }, 2000);
+
     return () => clearInterval(interval);
-  }, [jobId, status]);
+  }, [jobId, status?.status]);
 
   useEffect(() => {
-    let eventSource: EventSource;
-    if (jobId) {
-      eventSource = new EventSource(`/api/logs/${jobId}`);
-      eventSource.onmessage = (event) => {
-        if (event.data === '[DONE]') {
-          eventSource.close();
-        } else {
-          setLogs((prev) => [...prev, event.data]);
-        }
-      };
-      eventSource.onerror = () => eventSource.close();
-    }
-    return () => eventSource?.close();
+    if (!jobId) return;
+    setLogs([]);
+    const eventSource = createLogStream(jobId);
+
+    eventSource.onmessage = (event) => {
+      if (event.data === "[DONE]") {
+        eventSource.close();
+      } else {
+        setLogs((prev) => [...prev, event.data]);
+      }
+    };
+    eventSource.onerror = () => eventSource.close();
+    return () => eventSource.close();
   }, [jobId]);
 
-  const handleUpload = async () => {
-    if (!file) return;
-    setIsUploading(true);
+  const handleSharePointSubmit = async (url: string) => {
+    setIsProcessing(true);
     setLogs([]);
-    const formData = new FormData();
-    formData.append('file', file);
-
+    setJobId(null);
+    setStatus(null);
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
+      const data = await analyzeSharePointUrl(url);
       setJobId(data.job_id);
       setStatus(data);
     } catch (err) {
-      console.error('Upload failed', err);
-      setLogs(['Error: Upload failed. Please try again.']);
-    } finally {
-      setIsUploading(false);
+      console.error("SharePoint analysis failed", err);
+      setLogs(["Error: Failed to analyze SharePoint URL."]);
+      setIsProcessing(false);
     }
   };
 
+  const handleFileUpload = async () => {
+    if (!file) return;
+    setIsProcessing(true);
+    setLogs([]);
+    setJobId(null);
+    setStatus(null);
+    try {
+      const data = await uploadVideo(file);
+      setJobId(data.job_id);
+      setStatus(data);
+    } catch (err) {
+      console.error("Upload failed", err);
+      setLogs([
+        `Error: ${err instanceof Error ? err.message : "Upload failed."}`,
+      ]);
+      setIsProcessing(false);
+    }
+  };
+
+  const isRunning =
+    !!jobId && status?.status !== "completed" && status?.status !== "failed";
+
   return (
-    <div className="min-h-screen flex flex-col p-8 bg-[#0A192F] text-[#CCD6F6]">
-      <header className="flex justify-between items-center mb-12">
-        <div>
-          <h1 className="text-3xl font-bold text-[#64FFDA] tracking-tight">Decision Minds</h1>
-          <p className="text-[#8892B0] mt-1 text-lg">Meeting Intelligence Platform</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-[#8892B0]">
-          <span className="w-2 h-2 rounded-full bg-[#64FFDA] animate-pulse"></span>
-          System Active
+    <div className="min-h-screen bg-[#F8F7F5] flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[#F3F4F6] shadow-nav">
+        <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-sm text-[#6B7280] font-medium">
+              Enterprise AI
+            </span>
+            <span className="w-2 h-2 rounded-full bg-[#F26A21] animate-pulse shadow-[0_0_8px_rgba(242,106,33,0.4)]" />
+            <span className="text-sm text-[#0B1633] font-semibold">Active</span>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto w-full">
-        {/* Left Column: Upload & Logs */}
-        <div className="flex flex-col gap-8">
-          <section className="bg-[#112240] rounded-xl p-8 border border-[#233554] shadow-xl">
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-[#CCD6F6]">
-              <Upload size={20} className="text-[#64FFDA]" />
-              Upload Meeting Video
-            </h2>
-
-            <div className="border-2 border-dashed border-[#8892B0]/30 rounded-lg p-12 flex flex-col items-center justify-center gap-4 hover:border-[#64FFDA]/50 transition-colors group cursor-pointer relative">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <FileVideo size={48} className="text-[#8892B0] group-hover:text-[#64FFDA] transition-colors" />
-              <div className="text-center">
-                <p className="text-[#CCD6F6] font-medium">{file ? file.name : "Drag and drop or click to upload"}</p>
-                <p className="text-sm text-[#8892B0]">MP4, MKV, AVI, MOV up to 500MB</p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleUpload}
-              disabled={!file || isUploading || !!(jobId && status?.status !== 'completed' && status?.status !== 'failed')}
-              className="w-full mt-6 bg-[#0070f3] hover:bg-blue-600 disabled:bg-[#8892B0]/20 disabled:text-[#8892B0] text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
-            >
-              {isUploading ? <Loader2 className="animate-spin" size={20} /> : "Start AI Analysis"}
-            </button>
-          </section>
-
-          <section className="bg-black/20 rounded-xl p-6 border border-[#233554] shadow-xl flex-1 flex flex-col min-h-[300px]">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[#8892B0] mb-4 flex items-center gap-2">
-              <Terminal size={14} />
-              Process Timeline
-            </h2>
-            <div className="flex-1 bg-black/40 rounded-lg p-4 font-mono text-xs overflow-y-auto max-h-[400px]">
-              {logs.length === 0 && !jobId && <div className="text-[#8892B0]/30 italic">Awaiting input...</div>}
-              {logs.map((log, i) => (
-                <div key={i} className="mb-1 border-l border-[#233554] pl-3 py-1 ml-1">
-                  <span className={log.startsWith('Error') ? 'text-red-400' : 'text-[#8892B0]'}>{log}</span>
-                </div>
-              ))}
-              {status?.status === 'processing' && (
-                <div className="flex items-center gap-2 text-[#64FFDA] mt-2 animate-pulse">
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>Processing... {status.progress}%</span>
-                </div>
-              )}
-              <div ref={logEndRef} />
-            </div>
-          </section>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-white to-[#F8F7F5] border-b border-[#F3F4F6]">
+        <div className="max-w-7xl mx-auto px-8 py-12 text-center">
+          <div className="inline-flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-full px-5 py-2.5 mb-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6B7280] shadow-sm">
+            <Sparkles size={13} className="text-[#F26A21]" />
+            AI-Powered Meeting Intelligence
+          </div>
+          <h1 className="text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0B1633] leading-[1.05] -tracking-[0.02em]">
+            Turn meetings into
+            <br />
+            <span className="text-[#F26A21]">actionable insights</span>
+          </h1>
+          <p className="mt-4 text-lg text-[#6B7280] max-w-2xl mx-auto font-medium leading-relaxed">
+            Share a SharePoint link or upload a meeting recording. Our AI
+            transcribes and extracts per-person action items in seconds.
+          </p>
         </div>
+      </section>
 
-        {/* Right Column: Action Items */}
-        <section className="bg-[#112240] rounded-xl p-8 border border-[#233554] shadow-xl flex flex-col min-h-[600px]">
-          <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#233554]">
-            <h2 className="text-xl font-semibold flex items-center gap-2 text-[#CCD6F6]">
-              <CheckCircle2 size={20} className="text-[#64FFDA]" />
-              AI Action Insights
-            </h2>
-            {status?.status === 'completed' && (
-              <span className="bg-[#64FFDA]/10 text-[#64FFDA] text-[10px] font-bold px-2 py-0.5 rounded border border-[#64FFDA]/20 tracking-widest">
-                VERIFIED
-              </span>
-            )}
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: Input + Logs */}
+          <div className="flex flex-col gap-6">
+            {/* Input Card */}
+            <div className="bg-white rounded-3xl p-8 border border-[#E5E7EB] shadow-card">
+              <h2 className="text-lg font-bold text-[#0B1633] mb-6">
+                Upload Meeting Video
+              </h2>
+              <TabSelector activeTab={activeTab} onTabChange={setActiveTab} />
+              {activeTab === "sharepoint" ? (
+                <SharePointInput
+                  onSubmit={handleSharePointSubmit}
+                  disabled={isRunning}
+                  isProcessing={isProcessing}
+                />
+              ) : (
+                <FileUpload
+                  file={file}
+                  onFileSelect={setFile}
+                  onSubmit={handleFileUpload}
+                  disabled={isRunning}
+                  isProcessing={isProcessing}
+                />
+              )}
+            </div>
+
+            <LogTerminal
+              logs={logs}
+              status={status?.status || ""}
+              progress={status?.progress || 0}
+              hasStarted={!!jobId}
+            />
           </div>
 
-          {!jobId && (
-            <div className="flex-1 flex flex-col items-center justify-center text-[#8892B0] opacity-30 text-center px-12">
-              <CheckCircle2 size={64} className="mb-4 stroke-[1px]" />
-              <p className="text-lg">Intelligent extraction active</p>
-              <p className="text-sm">Action items will populate automatically upon processing completion.</p>
+          {/* Right: Results */}
+          <div className="bg-white rounded-3xl p-8 border border-[#E5E7EB] shadow-card flex flex-col min-h-[600px]">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#F3F4F6]">
+              <h2 className="text-lg font-bold text-[#0B1633] flex items-center gap-2.5">
+                <CheckCircle2 size={20} className="text-[#F26A21]" />
+                AI Action Insights
+              </h2>
+              {status?.status === "completed" && (
+                <span className="bg-[#F26A21]/10 text-[#F26A21] text-[10px] font-bold px-3 py-1 rounded-full border border-[#F26A21]/20 tracking-[0.1em] uppercase">
+                  Verified
+                </span>
+              )}
             </div>
-          )}
 
-          {status?.status === 'processing' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-[#8892B0] text-center">
-              <div className="relative mb-6">
-                <Loader2 size={64} className="animate-spin text-[#64FFDA]" />
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[#64FFDA]">
-                  {status.progress}%
+            {/* Empty state */}
+            {!jobId && (
+              <div className="flex-1 flex flex-col items-center justify-center text-[#9CA3AF] text-center px-8">
+                <div className="w-20 h-20 rounded-2xl bg-[#F8F7F5] flex items-center justify-center mb-5">
+                  <CheckCircle2 size={36} className="text-[#D1D5DB]" />
                 </div>
+                <p className="text-[#0B1633] font-semibold text-lg mb-1">
+                  Ready to analyze
+                </p>
+                <p className="text-sm max-w-xs">
+                  Paste a SharePoint link or upload a video to extract
+                  AI-powered action items.
+                </p>
               </div>
-              <p className="text-[#CCD6F6] font-medium text-lg mb-1">Synthesizing Meeting Data</p>
-              <p className="text-sm">Whisper & Mistral-7B working in sync...</p>
-            </div>
-          )}
+            )}
 
-          {status?.status === 'failed' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-red-400 text-center px-8">
-              <AlertCircle size={48} className="mb-4" />
-              <p className="font-bold text-lg">Analysis Interrupted</p>
-              <p className="text-sm mt-2 opacity-80">{status.error}</p>
-            </div>
-          )}
-
-          {status?.status === 'completed' && status.result && (
-            <div className="flex-1 flex flex-col h-full">
-              <div className="flex-1 bg-black/20 rounded-lg p-6 whitespace-pre-wrap text-[#CCD6F6] border border-[#233554] leading-relaxed font-sans text-sm mb-6 overflow-y-auto">
-                {status.result}
+            {/* Processing */}
+            {status?.status === "processing" && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 rounded-2xl bg-[#F26A21]/5 flex items-center justify-center">
+                    <Loader2 size={40} className="animate-spin text-[#F26A21]" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#F26A21]">
+                    {status.progress}%
+                  </div>
+                </div>
+                <p className="text-[#0B1633] font-semibold text-lg mb-1">
+                  Analyzing Meeting
+                </p>
+                <p className="text-sm text-[#6B7280]">
+                  High-velocity Groq AI processing in progress...
+                </p>
               </div>
-              <button className="w-full py-4 px-4 border border-[#64FFDA]/30 text-[#64FFDA] hover:bg-[#64FFDA]/10 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-semibold tracking-wide">
-                EXPORT TO ENTERPRISE CRM
-                <ExternalLink size={14} />
-              </button>
-            </div>
-          )}
-        </section>
+            )}
+
+            {/* Error */}
+            {status?.status === "failed" && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                <div className="w-20 h-20 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
+                  <AlertCircle size={36} className="text-red-500" />
+                </div>
+                <p className="font-bold text-lg text-[#0B1633]">
+                  Analysis Interrupted
+                </p>
+                <p className="text-sm text-[#6B7280] mt-2">{status.error}</p>
+              </div>
+            )}
+
+            {/* Results */}
+            {status?.status === "completed" && status.result && (
+              <ResultsPanel jobId={jobId!} result={status.result} />
+            )}
+          </div>
+        </div>
       </main>
 
-      <footer className="mt-12 text-center text-[#8892B0] text-[10px] border-t border-[#233554] pt-8 tracking-[0.2em] uppercase">
-        Decision Minds &bull; Proprietary Intelligent Systems &bull; 2026
+      {/* Footer */}
+      <footer className="border-t border-[#F3F4F6] bg-white">
+        <div className="max-w-7xl mx-auto px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <Logo className="opacity-60" />
+          <p className="text-[11px] text-[#9CA3AF] font-medium tracking-[0.15em] uppercase">
+            &copy; {new Date().getFullYear()} Decision Minds &bull; Intelligent
+            Systems
+          </p>
+        </div>
       </footer>
     </div>
   );
