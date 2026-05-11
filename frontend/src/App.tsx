@@ -121,7 +121,7 @@ const App: React.FC = () => {
           <h1 className="text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0B1633] leading-[1.05] -tracking-[0.02em]">
             Turn meetings into
             <br />
-            <span className="text-[#F26A21]">actionable insights</span>
+            <span className="text-[#0a5791]">actionable insights</span>
           </h1>
           <p className="mt-4 text-lg text-[#6B7280] max-w-2xl mx-auto font-medium leading-relaxed">
             Share a SharePoint link or upload a meeting recording. Our AI
