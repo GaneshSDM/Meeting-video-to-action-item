@@ -41,7 +41,7 @@ For each action item, identify:
 
 Also provide:
 - meeting_summary: 2-3 sentence summary
-- participants: All person names mentioned
+- participants: List EVERY person name mentioned in the transcript, including meeting attendees, people referenced, and action item owners. Do not omit names even if they have no explicit task.
 
 Return ONLY valid JSON:
 {

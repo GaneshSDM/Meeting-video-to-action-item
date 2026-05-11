@@ -5,6 +5,8 @@ export interface ActionItem {
   priority: "high" | "medium" | "low";
   confidence: number;
   context?: string;
+  eventId?: string;
+  teamsEventId?: string;
 }
 
 export interface AnalysisOutput {

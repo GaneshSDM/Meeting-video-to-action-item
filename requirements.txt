@@ -11,3 +11,4 @@ groq
 msal
 requests
 python-dotenv
+msgraph-core
