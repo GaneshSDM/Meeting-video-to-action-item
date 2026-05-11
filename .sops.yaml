@@ -1,0 +1,4 @@
+creation_rules:
+  - pgp: "95C976B249F458E5"
+    encrypted_regex: "^(.*)$"
+    path_regex: ".*\\.env$"
