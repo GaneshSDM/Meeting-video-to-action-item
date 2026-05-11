@@ -162,7 +162,102 @@ async def export_results(job_id: str, body: ExportRequest):
     return export_result
 
 
-if __name__ == "__main__":
+# Two‑way sync endpoints
+
+@app.patch("/events/{event_id}")
+async def update_event(event_id: str, job_id: str, update: dict):
+    """Update a calendar event identified by event_id for a completed job."""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    entry = jobs[job_id]
+    if entry["status"] != "completed" or not entry.get("result"):
+        raise HTTPException(status_code=400, detail="Job not completed")
+    analysis: AnalysisOutput = entry["result"]
+    target_item = None
+    for item in analysis.action_items:
+        if getattr(item, "event_id", None) == event_id:
+            target_item = item
+            break
+    if not target_item:
+        raise HTTPException(status_code=404, detail="Event not found in job results")
+    # Prepare updates for Google Calendar
+    from .calendar_service import CalendarService
+    from .teams_service import TeamsService
+    calendar = CalendarService()
+    calendar_updates = {}
+    if "title" in update:
+        calendar_updates["summary"] = update["title"]
+        target_item.task = update["title"]
+    if "start" in update:
+        calendar_updates["start"] = {"dateTime": update["start"], "timeZone": "UTC"}
+    if "end" in update:
+        calendar_updates["end"] = {"dateTime": update["end"], "timeZone": "UTC"}
+    if "participants" in update:
+        calendar_updates["guests"] = update["participants"]
+        target_item.context = f"Participants: {', '.join(update['participants'])}"
+    try:
+        calendar.update_event(event_id, calendar_updates)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calendar update failed: {e}")
+            # Update Teams if this item has a Teams event ID
+        if getattr(target_item, "teams_event_id", None):
+            try:
+                teams = TeamsService()
+                teams_updates = {}
+                if "title" in update:
+                    teams_updates["subject"] = update["title"]
+                if "start" in update:
+                    teams_updates["start"] = {"dateTime": update["start"], "timeZone": "UTC"}
+                if "end" in update:
+                    teams_updates["end"] = {"dateTime": update["end"], "timeZone": "UTC"}
+                if "participants" in update:
+                    teams_updates["attendees"] = [{"emailAddress": {"address": p}} for p in update["participants"]]
+                teams.update_event(target_item.teams_event_id, teams_updates)
+            except Exception as te:
+                raise HTTPException(status_code=500, detail=f"Teams update failed: {te}")
+        return {"status": "updated", "event_id": event_id}
+
+@app.delete("/events/{event_id}")
+async def delete_event(event_id: str, job_id: str):
+    """Delete a calendar event and remove it from job results."""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    entry = jobs[job_id]
+    if entry["status"] != "completed" or not entry.get("result"):
+        raise HTTPException(status_code=400, detail="Job not completed")
+    analysis: AnalysisOutput = entry["result"]
+    new_items = []
+    found = False
+    for item in analysis.action_items:
+        if getattr(item, "event_id", None) == event_id:
+            found = True
+            team_event_id = getattr(item, "teams_event_id", None)
+            continue
+        new_items.append(item)
+    if not found:
+        raise HTTPException(status_code=404, detail="Event not found in job results")
+    from .calendar_service import CalendarService
+    from .teams_service import TeamsService
+    calendar = CalendarService()
+    try:
+        calendar.delete_event(event_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Calendar delete failed: {e}")
+    # Delete Teams event if it existed
+    if team_event_id:
+        try:
+            teams = TeamsService()
+            teams.delete_event(team_event_id)
+        except Exception as te:
+            raise HTTPException(status_code=500, detail=f"Teams delete failed: {te}")
+    analysis.action_items = new_items
+    # Log deletion for audit
+    log_path = "action_items_log.jsonl"
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"job_id": job_id, "deleted_event": event_id}, default=str) + "\n")
+    return {"status": "deleted", "event_id": event_id}
+
+
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)

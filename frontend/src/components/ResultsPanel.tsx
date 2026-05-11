@@ -1,5 +1,6 @@
 import React from "react";
 import ActionItemCard from "./ActionItemCard";
+import EventList from "./EventList";
 import ExportButton from "./ExportButton";
 import type { AnalysisOutput } from "../types";
 
@@ -73,6 +74,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({ jobId, result }) => {
           ))}
         </div>
         <ExportButton jobId={jobId} />
+        <EventList jobId={jobId} />
       </div>
     </div>
   );
