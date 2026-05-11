@@ -1,0 +1,131 @@
+<mxfile host="app.diagrams.net" modified="2026-05-12T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="overall-architecture" name="Overall Architecture">
+    <mxGraphModel dx="1510" dy="880" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Decision Minds - Meeting Intelligence Platform Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#0B1633;" vertex="1" parent="1">
+          <mxGeometry x="360" y="30" width="880" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FB;strokeColor=#0A5791;fontColor=#0B1633;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="frontend" value="React / Vite Frontend&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Upload, SharePoint URL, logs, results, export UI&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A5791;fontColor=#0B1633;fontSize=15;fontStyle=1;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="160" width="270" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="backend" value="FastAPI Backend&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;/upload, /analyze, /status, /logs, /export&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F26A21;fontColor=#0B1633;fontSize=15;fontStyle=1;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="650" y="160" width="280" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inputGroup" value="Inputs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F7F5;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="995" y="115" width="260" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="upload" value="Local Video / Audio Upload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="160" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sharepoint" value="SharePoint Recording URL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="230" width="190" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pipelineGroup" value="Processing Pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F7F5;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="235" y="355" width="805" height="235" as="geometry" />
+        </mxCell>
+        <mxCell id="audio" value="Prepare Audio&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Extract audio and split large files&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="430" width="190" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="transcribe" value="Transcribe&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Groq Whisper Large v3 Turbo&lt;br&gt;or local Whisper fallback&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FB;strokeColor=#0A5791;fontColor=#0B1633;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="420" width="210" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="extract" value="Extract Action Items&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Groq Llama 3.3 70B&lt;br&gt;or Hugging Face fallback&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F26A21;fontColor=#0B1633;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="420" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="result" value="Analysis Output&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Transcript, summary, participants, per-person action items&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;fontColor=#0B1633;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="425" width="280" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="storageGroup" value="Local Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F7F5;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="150" y="660" width="415" height="215" as="geometry" />
+        </mxCell>
+        <mxCell id="videos" value="videos/" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="190" y="725" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="audioStore" value="audio/" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="320" y="725" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="transcriptStore" value="transcripts/" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="450" y="725" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="jsonLog" value="action_items_log.jsonl" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="255" y="810" width="190" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="integrationsGroup" value="External Integrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F7F5;strokeColor=#D1D5DB;fontColor=#0B1633;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="710" y="660" width="660" height="215" as="geometry" />
+        </mxCell>
+        <mxCell id="spExport" value="SharePoint&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Download recordings, export list/document&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FB;strokeColor=#0A5791;fontColor=#0B1633;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="755" y="735" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="google" value="Google Calendar&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Optional event sync&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="970" y="735" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="teams" value="Microsoft Teams&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Optional event sync&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B7280;fontColor=#0B1633;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="735" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" edge="1" parent="1" source="user" target="frontend" style="endArrow=block;html=1;rounded=0;strokeColor=#0B1633;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="frontend" target="backend" style="endArrow=block;html=1;rounded=0;strokeColor=#0B1633;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="POST /upload" edge="1" parent="1" source="upload" target="backend" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="POST /analyze" edge="1" parent="1" source="sharepoint" target="backend" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="job" edge="1" parent="1" source="backend" target="audio" style="endArrow=block;html=1;rounded=0;strokeColor=#F26A21;fontSize=11;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="audio" target="transcribe" style="endArrow=block;html=1;rounded=0;strokeColor=#0B1633;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="transcribe" target="extract" style="endArrow=block;html=1;rounded=0;strokeColor=#0B1633;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="extract" target="result" style="endArrow=block;html=1;rounded=0;strokeColor=#059669;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="status + SSE logs" edge="1" parent="1" source="backend" target="frontend" style="endArrow=block;html=1;rounded=0;strokeColor=#0A5791;fontSize=11;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="audio" target="videos" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="audio" target="audioStore" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="transcribe" target="transcriptStore" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="result" target="jsonLog" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="result" target="spExport" style="endArrow=block;html=1;rounded=0;strokeColor=#0A5791;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="result" target="google" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="result" target="teams" style="endArrow=block;html=1;rounded=0;strokeColor=#6B7280;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
