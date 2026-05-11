@@ -51,7 +51,7 @@ const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
       <button
         onClick={() => handleExport("sharepoint_document")}
         disabled={loading}
-        className="flex-1 py-3.5 px-4 bg-[#F26A21] hover:bg-[#E55D1B] text-white rounded-full transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-button disabled:opacity-50"
+        className="flex-1 py-3.5 px-4 bg-[#0a5791] hover:bg-[#E55D1B] text-white rounded-full transition-all duration-200 flex items-center justify-center gap-2 text-sm font-semibold shadow-button disabled:opacity-50"
       >
         <ExternalLink size={14} />
         Export to SharePoint
