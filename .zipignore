@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+__pycache__
+*.pyc
+videos/*
+audio/*
+transcripts/*
+action_items_log.jsonl
+frontend/node_modules
+frontend/dist
+.env
+*.zip

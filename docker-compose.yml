@@ -3,19 +3,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    volumes:
-      - ./videos:/app/videos
-      - ./audio:/app/audio
-      - ./transcripts:/app/transcripts
     env_file:
       - .env
     ports:
       - "8000:8000"
+    volumes:
+      - ./videos:/app/videos
+      - ./audio:/app/audio
+      - ./transcripts:/app/transcripts
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
     ports:
       - "3000:80"
     depends_on:
