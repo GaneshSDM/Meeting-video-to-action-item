@@ -67,6 +67,11 @@ def get_audio_path(video_path: str, audio_dir: str = "audio") -> str:
         mpcfg.FFMPEG_BINARY = _FFMPEG_PATH
     from moviepy import VideoFileClip
     video = VideoFileClip(video_path)
-    video.audio.write_audiofile(audio_path)
+    video.audio.write_audiofile(
+        audio_path,
+        fps=16000,
+        bitrate="64k",
+        ffmpeg_params=["-ac", "1"],
+    )
     video.close()
     return audio_path

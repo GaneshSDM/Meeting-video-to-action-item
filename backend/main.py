@@ -1,5 +1,6 @@
 import os
 import uuid
+import shutil
 import asyncio
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,24 @@ app.add_middleware(
 
 UPLOAD_DIR = "videos"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _cleanup_old_files(exclude_paths: set[str] | None = None) -> None:
+    exclude_paths = {os.path.abspath(p) for p in (exclude_paths or set())}
+    for directory in ("videos", "audio", "audio_chunks", "transcripts"):
+        if not os.path.isdir(directory):
+            continue
+        for name in os.listdir(directory):
+            path = os.path.abspath(os.path.join(directory, name))
+            if path in exclude_paths:
+                continue
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+            except Exception:
+                pass
 
 
 @app.get("/")
@@ -42,6 +61,13 @@ async def upload_video(
     job_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
 
+    active_paths = {
+        os.path.abspath(job["file_path"])
+        for job in jobs.values()
+        if job.get("file_path") and job["status"] in {"pending", "processing"}
+    }
+    _cleanup_old_files(exclude_paths=active_paths)
+
     with open(file_path, "wb") as buffer:
         while content := await file.read(1024 * 1024):
             buffer.write(content)
@@ -52,6 +78,7 @@ async def upload_video(
         "progress": 0,
         "result": None,
         "error": None,
+        "file_path": file_path,
     }
 
     background_tasks.add_task(run_pipeline, job_id, file_path)
