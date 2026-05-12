@@ -1,6 +1,5 @@
 import type { JobStatus, ExportRequest } from "../types";
 
-const BASE = "/api";
 const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 export async function uploadVideo(file: File): Promise<JobStatus> {
