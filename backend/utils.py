@@ -5,10 +5,7 @@ import shutil
 
 
 def _find_ffmpeg() -> str:
-    found = shutil.which("ffmpeg")
-    if found:
-        return found
-
+    # First try WinGet location
     if sys.platform == "win32":
         base = os.path.join(
             os.environ.get("LOCALAPPDATA", ""),
@@ -19,6 +16,11 @@ def _find_ffmpeg() -> str:
             bins = glob_mod.glob(os.path.join(base, "ffmpeg-*", "bin", "ffmpeg.exe"))
             if bins:
                 return bins[0]
+
+    # Fallback to PATH
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
 
     return "ffmpeg"
 
@@ -65,6 +67,11 @@ def get_audio_path(video_path: str, audio_dir: str = "audio") -> str:
         mpcfg.FFMPEG_BINARY = _FFMPEG_PATH
     from moviepy import VideoFileClip
     video = VideoFileClip(video_path)
-    video.audio.write_audiofile(audio_path)
+    video.audio.write_audiofile(
+        audio_path,
+        fps=16000,
+        bitrate="64k",
+        ffmpeg_params=["-ac", "1"],
+    )
     video.close()
     return audio_path
