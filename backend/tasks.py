@@ -69,15 +69,15 @@ def _extract_names(text: str) -> List[str]:
 
 def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> AnalysisOutput:
     """Transcribe (with optional chunking) and extract action items. Returns AnalysisOutput."""
-    # Determine if audio needs chunking (size > 100 MB or duration > threshold)
+    # Determine if audio needs chunking (size > 20 MB or duration > threshold)
     import os
     from .utils import split_audio_into_chunks, get_audio_path
     # If the path is a video, get audio first (already done externally)
     # For large audio, split into chunks
-    max_chunk_seconds = 600  # 10 minutes per chunk
-    # Decide based on file size (>100MB) or duration (the split helper handles it)
+    max_chunk_seconds = 300  # 5 minutes per chunk
+    # Decide based on file size (>20MB) or duration (the split helper handles it)
     audio_files = [audio_path]
-    if os.path.getsize(audio_path) > 100 * 1024 * 1024:
+    if os.path.getsize(audio_path) > 20 * 1024 * 1024:
         # Split audio into chunks
         audio_files = split_audio_into_chunks(audio_path, max_chunk_seconds=max_chunk_seconds)
         # Log chunk creation
@@ -85,11 +85,16 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
     # Transcribe
     _log(job_id, "Transcribing audio...")
     transcriber = create_transcriber(prefer_groq=True)
+    _log(job_id, f"Using transcription backend: {type(transcriber).__name__}")
     transcript_text = ""
-    for idx, chunk in enumerate(audio_files, 1):
-        _log(job_id, f"Transcribing chunk {idx}/{len(audio_files)}")
-        chunk_text = transcriber.transcribe(chunk)
-        transcript_text += chunk_text + "\n"
+    if hasattr(transcriber, "parallel_transcribe"):
+        _log(job_id, "Transcribing chunks in parallel...")
+        transcript_text = transcriber.parallel_transcribe(audio_files, max_workers=3)
+    else:
+        for idx, chunk in enumerate(audio_files, 1):
+            _log(job_id, f"Transcribing chunk {idx}/{len(audio_files)}")
+            chunk_text = transcriber.transcribe(chunk)
+            transcript_text += chunk_text + "\n"
     if not transcript_text:
         raise Exception("Transcription returned empty text.")
     # Save combined transcript

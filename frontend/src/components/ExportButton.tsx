@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ExternalLink, Download, Loader2, CheckCircle2 } from "lucide-react";
-import { exportResults } from "../services/api";
+import { exportResults, getDownloadUrl } from "../services/api";
 
 interface ExportButtonProps {
   jobId: string;
@@ -15,7 +15,7 @@ const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
     try {
       if (target === "local_log") {
         const a = document.createElement("a");
-        a.href = `/api/download/${jobId}`;
+        a.href = getDownloadUrl(jobId);
         a.download = `action_items_${jobId.slice(0, 8)}.json`;
         document.body.appendChild(a);
         a.click();

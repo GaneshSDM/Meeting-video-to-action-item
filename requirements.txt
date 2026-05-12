@@ -12,3 +12,5 @@ msal
 requests
 python-dotenv
 msgraph-core
+google-auth
+google-api-python-client
