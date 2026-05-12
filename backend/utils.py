@@ -5,10 +5,7 @@ import shutil
 
 
 def _find_ffmpeg() -> str:
-    found = shutil.which("ffmpeg")
-    if found:
-        return found
-
+    # First try WinGet location
     if sys.platform == "win32":
         base = os.path.join(
             os.environ.get("LOCALAPPDATA", ""),
@@ -19,6 +16,11 @@ def _find_ffmpeg() -> str:
             bins = glob_mod.glob(os.path.join(base, "ffmpeg-*", "bin", "ffmpeg.exe"))
             if bins:
                 return bins[0]
+
+    # Fallback to PATH
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
 
     return "ffmpeg"
 
