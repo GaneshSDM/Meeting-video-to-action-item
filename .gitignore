@@ -1,1 +1,9 @@
 .env
+node_modules/
+.vite/
+dist/
+audio/
+*.mp3
+*.db
+__pycache__/
+videos/
