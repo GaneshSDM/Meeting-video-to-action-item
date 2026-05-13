@@ -10,6 +10,7 @@ class ActionItem(BaseModel):
     deadline: Optional[str] = None
     priority: Literal["high", "medium", "low"] = "medium"
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    context: Optional[str] = None
     recurrence: Optional[str] = None
 
     @field_validator("owner", mode="before")

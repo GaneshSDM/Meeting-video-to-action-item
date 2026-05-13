@@ -52,6 +52,7 @@ class GroqTranscriber:
 class GroqActionItemExtractor:
     """High-velocity structured action item extraction via Groq Llama 3.3 70B."""
 
+    # In backend/groq_client.py, line 32 - update the SYSTEM_PROMPT
     SYSTEM_PROMPT = """You are an expert meeting analyst. Extract structured action items from the transcript.
 
 For each action item, identify:
@@ -63,6 +64,10 @@ For each action item, identify:
 - context: The exact quote or sentences from the transcript supporting this item
 
 Also provide:
+- meeting_summary: 2-3 sentence summary with PROPER SPELLING and GRAMMAR
+- participants: All person names mentioned
+
+IMPORTANT: Review your meeting_summary for spelling accuracy before returning. Use spell-check carefully.
 - meeting_summary: 2-3 sentence summary
 - participants: List EVERY person name mentioned in the transcript, including meeting attendees, people referenced, and action item owners. Do not omit names even if they have no explicit task.
 

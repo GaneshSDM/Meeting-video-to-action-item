@@ -1,3 +1,10 @@
+import json
+from typing import List, Optional
+from .models import ActionItem, AnalysisOutput
+
+
+class CRMConnector:
+    """CRM integration — local logging + optional SharePoint export."""
 ﻿import json
 import os
 from typing import List, Optional
@@ -13,6 +20,15 @@ class CRMConnector:
         self.crm_type = crm_type
         self._calendar_service = None
         self._teams_service = None
+
+    def update_action_items(self, analysis: AnalysisOutput) -> bool:
+        """Log structured action items locally."""
+        log_path = "action_items_log.jsonl"
+        entry = analysis.model_dump()
+        entry["crm_type"] = self.crm_type
+
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
 
     @property
     def calendar(self) -> CalendarService:
@@ -89,6 +105,22 @@ class CRMConnector:
         target: str = "local_log",
         sharepoint_url: Optional[str] = None,
     ) -> dict:
+        """Export results to the chosen target."""
+        if target == "local_log":
+            self.update_action_items(analysis)
+            return {"status": "ok", "target": "local_log"}
+
+        if target in ("sharepoint_list", "sharepoint_document"):
+            if not sharepoint_url:
+                return {"status": "error", "detail": "sharepoint_url required for SharePoint export"}
+
+            try:
+                from .sharepoint import SharePointClient
+
+                sp = SharePointClient()
+                info = sp.parse_url(sharepoint_url)
+                site_id = sp.get_site_id(info["hostname"], info["site_path"])
+
         """Export results to the chosen target (local log or SharePoint)."""
         if target == "local_log":
             self.update_action_items(analysis)
@@ -110,6 +142,7 @@ class CRMConnector:
                         html,
                     )
                     return {"status": "ok", "target": "sharepoint_document", "url": web_url}
+
                 if target == "sharepoint_list":
                     items = sp.export_to_list(
                         site_id,
@@ -117,6 +150,10 @@ class CRMConnector:
                         analysis.action_items,
                     )
                     return {"status": "ok", "target": "sharepoint_list", "count": len(items)}
+
+            except Exception as e:
+                return {"status": "error", "detail": str(e)}
+
             except Exception as e:
                 return {"status": "error", "detail": str(e)}
         return {"status": "error", "detail": f"Unknown target: {target}"}

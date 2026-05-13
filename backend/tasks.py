@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import re
 from typing import Dict, List
@@ -29,6 +29,29 @@ def _log(job_id: str, msg: str):
     logs[job_id].append(msg)
     print(f"[{job_id}] {msg}")
 
+
+def _process_audio(job_id: str, audio_path: str, progress_base: int = 60):
+    """Shared transcription + action item extraction. Returns AnalysisOutput."""
+    transcript_dir = "transcripts"
+    os.makedirs(transcript_dir, exist_ok=True)
+
+    base_name = os.path.splitext(os.path.basename(audio_path))[0]
+    transcript_path = os.path.join(transcript_dir, f"{base_name}.txt")
+
+    # Transcribe
+    _log(job_id, "Transcribing audio...")
+    transcriber = create_transcriber(prefer_groq=True)
+    transcript_text = transcriber.transcribe(audio_path)
+    if not transcript_text:
+        raise Exception("Transcription returned empty text.")
+
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        f.write(transcript_text)
+    jobs[job_id]["progress"] = progress_base
+
+    # Extract action items
+    _log(job_id, "Extracting per-person action items...")
+    processor = create_processor(prefer_groq=True)
 
 def _extract_names(text: str) -> List[str]:
     """Lightweight heuristic to pull likely person names from transcript text."""
@@ -117,6 +140,9 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
         action_items = processor.extract_action_items(transcript_text)
         meeting_summary = ""
         participants = []
+
+    jobs[job_id]["progress"] = progress_base + 30
+
         jobs[job_id]["progress"] = progress_base + 30
     # Fallback: derive participants from owners if LLM returned none
     if not participants and action_items:
@@ -130,6 +156,7 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
         participants=participants,
         action_items=action_items,
     )
+
 
 async def run_pipeline(job_id: str, video_path: str):
     jobs[job_id]["status"] = "processing"
@@ -163,6 +190,7 @@ async def run_pipeline(job_id: str, video_path: str):
         _log(job_id, f"Error: {str(e)}")
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
+
 
 async def run_sharepoint_pipeline(job_id: str, sharepoint_url: str):
     jobs[job_id]["status"] = "processing"

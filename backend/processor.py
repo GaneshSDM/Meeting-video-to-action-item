@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import re
 from typing import List
@@ -59,6 +59,7 @@ Transcript:
 
             items = []
             for item in data.get("action_items", []):
+                owner = item.get("owner") or "Unknown"
                 # If no owner is provided, treat the task as a general item
                 owner = item.get("owner") or "General"
                 task = item.get("task") or ""

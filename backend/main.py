@@ -189,6 +189,7 @@ async def export_results(job_id: str, body: ExportRequest):
     return export_result
 
 
+if __name__ == "__main__":
 # Two‑way sync endpoints
 
 @app.patch("/events/{event_id}")
