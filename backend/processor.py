@@ -1,7 +1,7 @@
 ﻿import os
 import json
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .models import ActionItem
 from .hf_client import HFClient
 
@@ -100,14 +100,68 @@ Return ONLY valid JSON:
             "action_items": action_items,
         }
 
-def create_processor(prefer_groq: bool = False):
-    """Factory: returns HFActionItemExtractor if HF_TOKEN is set."""
-    if os.getenv("HF_TOKEN"):
+class AdaptiveProcessor:
+    """Tries HF first for action item extraction, auto-switches to Groq on failure."""
+
+    def __init__(self):
+        self._hf: Optional[HFActionItemExtractor] = None
+        self._groq: Optional[Any] = None
+        self._using_groq = False
+
+        # Try initializing HF
+        if os.getenv("HF_TOKEN"):
+            try:
+                self._hf = HFActionItemExtractor()
+                print("AdaptiveProcessor: HF ready, will try first.")
+            except Exception as e:
+                print(f"AdaptiveProcessor: HF init failed ({e})")
+
+        # Pre-init Groq as fallback
+        if os.getenv("GROQ_API_KEY"):
+            try:
+                from .groq_client import GroqActionItemExtractor
+                self._groq = GroqActionItemExtractor()
+                print("AdaptiveProcessor: Groq ready as fallback.")
+            except Exception:
+                pass
+
+        if not self._hf and not self._groq:
+            raise RuntimeError("No processor available. Set HF_TOKEN or GROQ_API_KEY in .env")
+
+    def extract_full(self, transcript: str) -> Dict[str, Any]:
+        if self._using_groq and self._groq:
+            return self._groq.extract_full(transcript)
+
         try:
-            print("Using Hugging Face Llama 3.3 70B for action item extraction")
-            return HFActionItemExtractor()
+            return self._hf.extract_full(transcript)
         except Exception as e:
-            print(f"HF init failed ({e})")
-    
-    # Fail loudly if we expected HF but it failed, or fallback to a generic one
-    raise RuntimeError("No suitable LLM processor available. Set HF_TOKEN in .env")
+            print(f"AdaptiveProcessor: ⚡ HF failed ({e}). Switching to Groq!")
+            if self._groq:
+                self._using_groq = True
+                return self._groq.extract_full(transcript)
+            raise
+
+    def extract_action_items(self, transcript: str) -> List[ActionItem]:
+        if self._using_groq and self._groq:
+            return self._groq.extract_action_items(transcript)
+
+        try:
+            return self._hf.extract_action_items(transcript)
+        except Exception as e:
+            print(f"AdaptiveProcessor: ⚡ HF failed ({e}). Switching to Groq!")
+            if self._groq:
+                self._using_groq = True
+                return self._groq.extract_action_items(transcript)
+            raise
+
+
+def create_processor(prefer_groq: bool = False, adaptive_switch: bool = True):
+    """Factory: returns AdaptiveProcessor (with HF→Groq fallback) or specific backend."""
+    if adaptive_switch:
+        return AdaptiveProcessor()
+    if prefer_groq and os.getenv("GROQ_API_KEY"):
+        from .groq_client import GroqActionItemExtractor
+        return GroqActionItemExtractor()
+    if os.getenv("HF_TOKEN"):
+        return HFActionItemExtractor()
+    raise RuntimeError("No suitable LLM processor available. Set HF_TOKEN or GROQ_API_KEY in .env")

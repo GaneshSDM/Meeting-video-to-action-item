@@ -36,24 +36,63 @@ class HFClient:
 
     def chat_completion(self, prompt: str, model_id: str = "unsloth/Llama-3.3-70B-Instruct-GGUF", max_tokens: int = 2000, temperature: float = 0.2) -> str:
         """Generic chat completion for HF Inference API."""
-        api_url = f"https://api-inference.huggingface.co/models/{model_id}"
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_new_tokens": max_tokens,
-                "temperature": temperature,
-                "return_full_text": False,
-            },
-        }
-        
-        response = requests.post(api_url, headers=self.headers, json=payload)
-        response.raise_for_status()
-        
-        result = response.json()
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get("generated_text", "").strip()
-        elif isinstance(result, dict):
-            return result.get("generated_text", "").strip()
-        
-        return ""
+        # Try primary model, then fallbacks. Many modern models use TGI endpoint.
+        fallback_models = [
+            model_id,
+            "openai-community/gpt2",
+            "google/flan-t5-large",
+            "google/flan-t5-xl",
+            "bigscience/bloom-560m",
+        ]
+
+        last_error = None
+        for mid in fallback_models:
+            # Try standard endpoint first
+            api_url = f"https://api-inference.huggingface.co/models/{mid}"
+
+            payload = {
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": max_tokens,
+                    "temperature": temperature,
+                    "return_full_text": False,
+                },
+            }
+
+            try:
+                response = requests.post(api_url, headers=self.headers, json=payload, timeout=30)
+                if response.status_code == 404:
+                    # Some models use TGI endpoint — try chat completions format
+                    tgi_url = f"https://api-inference.huggingface.co/models/{mid}/v1/chat/completions"
+                    tgi_payload = {
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    }
+                    response = requests.post(tgi_url, headers=self.headers, json=tgi_payload, timeout=30)
+                if response.status_code == 404:
+                    print(f"HF model '{mid}' not found (404), trying fallback...")
+                    last_error = f"404: {mid} not found"
+                    continue
+                response.raise_for_status()
+
+                result = response.json()
+                # Handle TGI chat format
+                if isinstance(result, dict) and "choices" in result:
+                    return result["choices"][0]["message"]["content"].strip()
+                # Handle standard format
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0].get("generated_text", "").strip()
+                elif isinstance(result, dict):
+                    return result.get("generated_text", "").strip()
+                return ""
+            except requests.exceptions.Timeout:
+                print(f"HF model '{mid}' timed out, trying fallback...")
+                last_error = f"timeout: {mid}"
+                continue
+            except Exception as e:
+                print(f"HF model '{mid}' failed ({e}), trying fallback...")
+                last_error = str(e)
+                continue
+
+        raise RuntimeError(f"All HF models failed. Last error: {last_error}")
