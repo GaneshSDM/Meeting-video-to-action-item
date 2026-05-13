@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import re
 from typing import Dict, List
@@ -76,7 +76,8 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
         _log(job_id, f"Split audio into {len(audio_files)} chunks for processing.")
     
     _log(job_id, "Transcribing audio...")
-    transcriber = create_transcriber(prefer_groq=True)
+    # Smart adaptive: starts with local HF Whisper, switches to Groq if too slow
+    transcriber = create_transcriber(time_based_switch=True, timeout_per_chunk=120)
     _log(job_id, f"Using transcription backend: {type(transcriber).__name__}")
     transcript_text = ""
     if hasattr(transcriber, "parallel_transcribe"):
@@ -101,7 +102,8 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
     jobs[job_id]["progress"] = progress_base
     
     _log(job_id, "Extracting per-person action items...")
-    processor = create_processor(prefer_groq=True)
+    # Adaptive: tries HF first, auto-switches to Groq if HF fails
+    processor = create_processor(adaptive_switch=True)
     if hasattr(processor, "extract_full"):
         data = processor.extract_full(transcript_text)
         action_items = data["action_items"]
