@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { ExternalLink, Download, Loader2, CheckCircle2 } from "lucide-react";
-import { exportResults } from "../services/api";
 import { exportResults, getDownloadUrl } from "../services/api";
 
 interface ExportButtonProps {
@@ -24,12 +23,9 @@ const downloadReportAsTxt = async (jobId: string) => {
     minute: "2-digit",
   });
 
-  const divider  = "═".repeat(60);
-  const thinLine = "─".repeat(60);
+  const divider  = "?".repeat(60);
+  const thinLine = "-".repeat(60);
 
-  // ╔══════════════════════════════════════════════════════╗
-  // ║                     HEADER                          ║
-  // ╚══════════════════════════════════════════════════════╝
   lines.push(divider);
   lines.push("  DECISION MINDS  |  EXECUTIVE MEETING REPORT");
   lines.push(divider);
@@ -40,13 +36,11 @@ const downloadReportAsTxt = async (jobId: string) => {
   lines.push(divider);
   lines.push("");
 
-  // ── SECTION 1 : EXECUTIVE SUMMARY ───────────────────────
-  lines.push("  SECTION 1 — EXECUTIVE SUMMARY");
+  lines.push("  SECTION 1 - EXECUTIVE SUMMARY");
   lines.push(thinLine);
   lines.push("");
   if (jsonData?.meeting_summary) {
-    // Word wrap at 58 chars for clean reading
-    const words = jsonData.meeting_summary.trim().split(/\s+/);
+    const words = jsonData.meeting_summary.trim().split(/\\s+/);
     let curr = "  ";
     words.forEach((word: string) => {
       if ((curr + word).length > 60) {
@@ -64,14 +58,12 @@ const downloadReportAsTxt = async (jobId: string) => {
   lines.push(divider);
   lines.push("");
 
-  // ── SECTION 2 : KEY DECISIONS & ACTION ITEMS ────────────
   const items = jsonData?.action_items || [];
-  lines.push(`  SECTION 2 — KEY DECISIONS & ACTION ITEMS  [${items.length}]`);
+  lines.push(`  SECTION 2 - KEY DECISIONS & ACTION ITEMS  [${items.length}]`);
   lines.push(thinLine);
   lines.push("");
 
   if (items.length > 0) {
-    // Group by priority
     const high   = items.filter((i: any) => i.priority?.toLowerCase() === "high");
     const medium = items.filter((i: any) => i.priority?.toLowerCase() === "medium");
     const low    = items.filter((i: any) => i.priority?.toLowerCase() === "low");
@@ -102,23 +94,19 @@ const downloadReportAsTxt = async (jobId: string) => {
   lines.push(divider);
   lines.push("");
 
-  // ── SECTION 3 : ATTENDEES ───────────────────────────────
   const participants = jsonData?.participants || [];
   if (participants.length > 0) {
-    lines.push("  SECTION 3 — ATTENDEES");
+    lines.push("  SECTION 3 - ATTENDEES");
     lines.push(thinLine);
     lines.push("");
-    participants.forEach((p: string, i: number) => {
-      lines.push(`  ${i + 1}. ${p}`);
+    participants.forEach((p: any, i: number) => {
+      lines.push(`  ${i + 1}. ${p.name || "Unknown"}`);
     });
-    lines.push("");
-    lines.push(divider);
     lines.push("");
   }
 
-  // ── SECTION 4 : NEXT STEPS ──────────────────────────────
   const nextSection = participants.length > 0 ? "4" : "3";
-  lines.push(`  SECTION ${nextSection} — NEXT STEPS`);
+  lines.push(`  SECTION ${nextSection} - NEXT STEPS`);
   lines.push(thinLine);
   lines.push("");
 
@@ -129,7 +117,7 @@ const downloadReportAsTxt = async (jobId: string) => {
     items.slice(0, 3).forEach((item: any, i: number) => {
       const deadline = item.deadline || "at the earliest";
       lines.push(`  ${i + 1}. ${item.task}`);
-      lines.push(`     → Complete ${deadline}`);
+      lines.push(`     ? Complete ${deadline}`);
       lines.push("");
     });
   } else {
@@ -140,7 +128,6 @@ const downloadReportAsTxt = async (jobId: string) => {
   lines.push(divider);
   lines.push("");
 
-  // ── CONFIDENTIALITY NOTE ────────────────────────────────
   lines.push("  CONFIDENTIAL");
   lines.push(thinLine);
   lines.push("  This report is intended solely for the addressee(s).");
@@ -151,13 +138,11 @@ const downloadReportAsTxt = async (jobId: string) => {
   lines.push(divider);
   lines.push("");
 
-  // ── FOOTER ──────────────────────────────────────────────
   lines.push("  Powered by Decision Minds");
   lines.push("  Better Decisions. Better Lives.");
   lines.push(`  www.decisionminds.com  |  Report ID: ${jobId.slice(0, 8).toUpperCase()}`);
   lines.push(divider);
 
-  // ── TRIGGER DOWNLOAD ────────────────────────────────────
   const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
@@ -169,9 +154,6 @@ const downloadReportAsTxt = async (jobId: string) => {
   URL.revokeObjectURL(url);
 };
 
-const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
-  const [loading, setLoading] = useState(false);
-  const [done, setDone]       = useState(false);
 const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -214,7 +196,6 @@ const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
           <Download size={14} />
         )}
         {done ? "Downloaded!" : "Download Report"}
-        {done ? "Downloaded!" : "Download JSON"}
       </button>
       <button
         onClick={() => handleExport("sharepoint_document")}

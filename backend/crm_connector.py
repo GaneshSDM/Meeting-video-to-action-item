@@ -1,20 +1,11 @@
 import json
-from typing import List, Optional
-from .models import ActionItem, AnalysisOutput
-
-
-class CRMConnector:
-    """CRM integration — local logging + optional SharePoint export."""
-﻿import json
 import os
 from typing import List, Optional
 from .models import ActionItem, AnalysisOutput
 from .calendar_service import CalendarService
 
-# TeamsService is optional; import lazily within the property to avoid hard dependency on msgraph.
-
 class CRMConnector:
-    """CRM integration — logs to a local file and optionally syncs to Google Calendar and Microsoft Teams."""
+    """CRM integration - logs to a local file and optionally syncs to Google Calendar and Microsoft Teams."""
 
     def __init__(self, crm_type: str = "Generic"):
         self.crm_type = crm_type
@@ -22,13 +13,16 @@ class CRMConnector:
         self._teams_service = None
 
     def update_action_items(self, analysis: AnalysisOutput) -> bool:
-        """Log structured action items locally."""
+        """Create calendar events for each action item and log locally."""
         log_path = "action_items_log.jsonl"
+        for item in analysis.action_items:
+            self._create_event(item)
         entry = analysis.model_dump()
         entry["crm_type"] = self.crm_type
-
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, default=str) + "\n")
+        print(f"Action items logged to {log_path}")
+        return True
 
     @property
     def calendar(self) -> CalendarService:
@@ -43,7 +37,6 @@ class CRMConnector:
                 from .teams_service import TeamsService
                 self._teams_service = TeamsService()
             except RuntimeError:
-                # Expected when Teams credentials are not configured — silently skip
                 self._teams_service = None
             except Exception as e:
                 print(f"TeamsService init failed: {e}")
@@ -51,27 +44,13 @@ class CRMConnector:
         return self._teams_service
 
     def _create_event(self, item: ActionItem) -> None:
-        """Create calendar events for an ``ActionItem``.
-+
-+        The original implementation attempted to always create a Google Calendar
-+        event, which raised a ``RuntimeError`` when the ``GOOGLE_SERVICE_ACCOUNT``
-+        environment variable was not set. To make the connector robust in
-+        development or CI environments, we now:
-+
-+        * Skip Google Calendar creation if the required service‑account file is
-+          missing.
-+        * Gracefully handle any exception from the calendar client, logging a
-+          concise warning.
-+        * Attempt Teams integration only when the optional ``TeamsService``
-+          could be imported successfully.
-+        """
+        """Create calendar events for an ActionItem."""
         event_body = {
             "summary": item.task,
             "description": "",
             "start": {"dateTime": "2026-01-01T09:00:00Z", "timeZone": "UTC"},
             "end": {"dateTime": "2026-01-01T10:00:00Z", "timeZone": "UTC"},
         }
-        # Google Calendar – optional
         try:
             cred_path = os.getenv("GOOGLE_SERVICE_ACCOUNT")
             if cred_path and os.path.isfile(cred_path):
@@ -79,7 +58,7 @@ class CRMConnector:
                 item.event_id = ev_id
         except Exception as e:
             print(f"Google event creation skipped/failed for '{item.task}': {e}")
-        # Teams (optional)
+        
         if self.teams:
             try:
                 teams_ev_id = self.teams.create_event(event_body)
@@ -87,44 +66,17 @@ class CRMConnector:
             except Exception as e:
                 print(f"Teams event creation failed for '{item.task}': {e}")
 
-    def update_action_items(self, analysis: AnalysisOutput) -> bool:
-        """Create calendar events for each action item and log locally."""
-        log_path = "action_items_log.jsonl"
-        for item in analysis.action_items:
-            self._create_event(item)
-        entry = analysis.model_dump()
-        entry["crm_type"] = self.crm_type
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, default=str) + "\n")
-        print(f"Action items logged to {log_path}")
-        return True
-
     def export_results(
         self,
         analysis: AnalysisOutput,
         target: str = "local_log",
         sharepoint_url: Optional[str] = None,
     ) -> dict:
-        """Export results to the chosen target."""
-        if target == "local_log":
-            self.update_action_items(analysis)
-            return {"status": "ok", "target": "local_log"}
-
-        if target in ("sharepoint_list", "sharepoint_document"):
-            if not sharepoint_url:
-                return {"status": "error", "detail": "sharepoint_url required for SharePoint export"}
-
-            try:
-                from .sharepoint import SharePointClient
-
-                sp = SharePointClient()
-                info = sp.parse_url(sharepoint_url)
-                site_id = sp.get_site_id(info["hostname"], info["site_path"])
-
         """Export results to the chosen target (local log or SharePoint)."""
         if target == "local_log":
             self.update_action_items(analysis)
             return {"status": "ok", "target": "local_log"}
+        
         if target in ("sharepoint_list", "sharepoint_document"):
             if not sharepoint_url:
                 return {"status": "error", "detail": "sharepoint_url required for SharePoint export"}
@@ -142,7 +94,6 @@ class CRMConnector:
                         html,
                     )
                     return {"status": "ok", "target": "sharepoint_document", "url": web_url}
-
                 if target == "sharepoint_list":
                     items = sp.export_to_list(
                         site_id,
@@ -150,10 +101,6 @@ class CRMConnector:
                         analysis.action_items,
                     )
                     return {"status": "ok", "target": "sharepoint_list", "count": len(items)}
-
-            except Exception as e:
-                return {"status": "error", "detail": str(e)}
-
             except Exception as e:
                 return {"status": "error", "detail": str(e)}
         return {"status": "error", "detail": f"Unknown target: {target}"}
