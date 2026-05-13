@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ExternalLink, Download, Loader2, CheckCircle2 } from "lucide-react";
 import { exportResults } from "../services/api";
+import { exportResults, getDownloadUrl } from "../services/api";
 
 interface ExportButtonProps {
   jobId: string;
@@ -171,12 +172,21 @@ const downloadReportAsTxt = async (jobId: string) => {
 const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
+const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
 
   const handleExport = async (target: "local_log" | "sharepoint_document") => {
     setLoading(true);
     try {
       if (target === "local_log") {
         await downloadReportAsTxt(jobId);
+        const a = document.createElement("a");
+        a.href = getDownloadUrl(jobId);
+        a.download = `action_items_${jobId.slice(0, 8)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       } else {
         await exportResults(jobId, target);
       }
@@ -204,6 +214,7 @@ const ExportButton: React.FC<ExportButtonProps> = ({ jobId }) => {
           <Download size={14} />
         )}
         {done ? "Downloaded!" : "Download Report"}
+        {done ? "Downloaded!" : "Download JSON"}
       </button>
       <button
         onClick={() => handleExport("sharepoint_document")}

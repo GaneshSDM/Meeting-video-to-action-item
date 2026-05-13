@@ -25,6 +25,29 @@ class GroqTranscriber:
             )
         return transcription.text
 
+    def parallel_transcribe(self, audio_paths: list[str], max_workers: int = 3) -> str:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        workers = min(max_workers, len(audio_paths)) or 1
+        results = [None] * len(audio_paths)
+
+        def _transcribe_chunk(path: str) -> str:
+            return self.transcribe(path)
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(_transcribe_chunk, path): idx
+                for idx, path in enumerate(audio_paths)
+            }
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    results[idx] = future.result()
+                except Exception as e:
+                    raise RuntimeError(f"Chunk transcription failed: {e}")
+
+        return "\n".join(results)
+
 
 class GroqActionItemExtractor:
     """High-velocity structured action item extraction via Groq Llama 3.3 70B."""
@@ -45,6 +68,8 @@ Also provide:
 - participants: All person names mentioned
 
 IMPORTANT: Review your meeting_summary for spelling accuracy before returning. Use spell-check carefully.
+- meeting_summary: 2-3 sentence summary
+- participants: List EVERY person name mentioned in the transcript, including meeting attendees, people referenced, and action item owners. Do not omit names even if they have no explicit task.
 
 Return ONLY valid JSON:
 {

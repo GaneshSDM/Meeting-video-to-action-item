@@ -1,6 +1,7 @@
 import type { JobStatus, ExportRequest } from "../types";
 
 const BASE = "/api";
+const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 export async function uploadVideo(file: File): Promise<JobStatus> {
   const formData = new FormData();
@@ -53,3 +54,5 @@ export async function exportResults(
   if (!res.ok) throw new Error("Export failed");
   return res.json();
 }
+
+export const getDownloadUrl = (jobId: string): string => `${BASE}/download/${jobId}`;

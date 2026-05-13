@@ -1,4 +1,5 @@
 fastapi
+fix bothfastapi
 uvicorn
 python-multipart
 pydantic
@@ -7,3 +8,5 @@ groq
 msal
 requests
 python-dotenv
+google-auth
+google-api-python-client
