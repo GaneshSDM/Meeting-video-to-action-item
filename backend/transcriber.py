@@ -1,29 +1,32 @@
 ﻿import os
-import torch
 import time
 from typing import Optional, List
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 # Global caches to avoid reloading models
 _CACHED_HF_TRANSCRIBER = None
 _CACHED_GROQ_TRANSCRIBER = None
 
 class HFLocalTranscriber:
-    """Local Whisper transcription using transformers pipeline (Whisper Large v3 Turbo)."""
+    """Local Whisper transcription using transformers pipeline (Whisper Large v3 Turbo).
+    Heavy imports (torch, transformers) are lazy to keep the Docker image lightweight
+    when using Groq as the transcription backend."""
 
     def __init__(self, model_id: str = "openai/whisper-large-v3-turbo"):
+        import torch
+        from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+
         print(f"Loading local Whisper model: {model_id}...")
         cuda_available = torch.cuda.is_available()
         self.device = "cuda:0" if cuda_available else "cpu"
         self.torch_dtype = torch.float16 if cuda_available else torch.float32
-        
+
         self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            model_id, 
-            torch_dtype=self.torch_dtype, 
-            low_cpu_mem_usage=True, 
+            model_id,
+            torch_dtype=self.torch_dtype,
+            low_cpu_mem_usage=True,
             use_safetensors=True
         ).to(self.device)
-        
+
         self.processor = AutoProcessor.from_pretrained(model_id)
         self.pipe = pipeline(
             "automatic-speech-recognition",
@@ -34,7 +37,7 @@ class HFLocalTranscriber:
             batch_size=16,
             torch_dtype=self.torch_dtype,
             device=self.device,
-            ignore_warning=True 
+            ignore_warning=True
         )
         self.generate_kwargs = {"language": "english", "task": "transcribe"}
 
