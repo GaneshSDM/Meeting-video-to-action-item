@@ -7,7 +7,7 @@ interface ExportButtonProps {
 }
 
 const downloadReportAsTxt = async (jobId: string) => {
-  const response = await fetch(`/api/download/${jobId}`);
+  const response = await fetch(getDownloadUrl(jobId));
   const jsonData = await response.json();
 
   const lines: string[] = [];
