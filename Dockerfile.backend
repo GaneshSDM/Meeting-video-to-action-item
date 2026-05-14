@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements-core.txt
 
 COPY backend/ ./backend/
 
-RUN mkdir -p videos audio transcripts
+RUN mkdir -p videos audio transcripts watch
 
 EXPOSE 8000
 

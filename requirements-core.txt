@@ -1,5 +1,4 @@
 fastapi
-fix bothfastapi
 uvicorn
 python-multipart
 pydantic
@@ -10,3 +9,4 @@ requests
 python-dotenv
 google-auth
 google-api-python-client
+psycopg2-binary

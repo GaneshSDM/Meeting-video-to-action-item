@@ -11,6 +11,8 @@ services:
       - ./videos:/app/videos
       - ./audio:/app/audio
       - ./transcripts:/app/transcripts
+      - ./watch:/app/watch
+    restart: unless-stopped
 
   frontend:
     build:
@@ -20,3 +22,4 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
