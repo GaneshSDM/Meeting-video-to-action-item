@@ -12,6 +12,7 @@ services:
       - ./audio:/app/audio
       - ./transcripts:/app/transcripts
       - ./watch:/app/watch
+      - ./service-account.json:/app/service-account.json:ro
     restart: unless-stopped
 
   frontend:

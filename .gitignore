@@ -3,6 +3,7 @@ node_modules/
 .vite/
 dist/
 audio/
+service-account.json
 *.mp3
 *.db
 __pycache__/
