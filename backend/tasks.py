@@ -49,17 +49,29 @@ def _extract_names(text: str) -> List[str]:
         "Some", "Such", "No", "Nor", "Not", "Only", "Own", "Same", "So",
         "Than", "Too", "Very", "Just", "But", "Don", "Should", "Now",
         "Mr", "Mrs", "Ms", "Dr", "Prof", "Sir", "Madam",
+        # Business/finance terms that appear capitalized in transcripts
+        "Total", "Annual", "Customer", "Revenue", "Cost", "Price", "Value",
+        "Churn", "Expansion", "Growth", "Budget", "Forecast", "Target",
+        "Quarter", "Q1", "Q2", "Q3", "Q4", "Team", "Product", "Service",
+        "Sales", "Marketing", "Support", "Review", "Report", "Meeting",
+        "Action", "Item", "Items", "Task", "Tasks", "Deadline", "Priority",
+        "High", "Medium", "Low", "Confidence", "Context", "Owner", "Owners",
+        "Status", "Update", "Project", "Plan", "Goal", "Risk", "Issue",
+        "Let", "One", "Two", "Three", "Four", "Five", "First", "Second",
+        "Next", "Last", "Previous", "Current", "New", "Old", "Plus", "Minus",
     }
-    candidates = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b", text)
+    # Only match proper names: 2+ letters, not at sentence start unless followed by another word
+    candidates = re.findall(r"(?:^|\s)([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)", text)
     names = []
     for candidate in candidates:
+        candidate = candidate.strip()
         parts = candidate.split()
         if all(p not in exclude for p in parts):
             names.append(candidate)
     seen = set()
     unique = []
     for n in names:
-        if n.lower() not in seen:
+        if n.lower() not in seen and len(n) > 1:
             seen.add(n.lower())
             unique.append(n)
     return unique
@@ -117,7 +129,7 @@ def _process_audio(job_id: str, audio_path: str, progress_base: int = 60) -> Ana
     jobs[job_id]["progress"] = progress_base + 30
     
     if not participants and action_items:
-        participants = list({item.owner for item in action_items if item.owner and item.owner != "Unknown"})
+        participants = list({item.owner for item in action_items if item.owner and len(item.owner) > 1 and item.owner != "Unknown"})
     if not participants:
         participants = _extract_names(transcript_text)
         

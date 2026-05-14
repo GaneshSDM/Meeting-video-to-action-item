@@ -55,8 +55,18 @@ class GroqActionItemExtractor:
     # In backend/groq_client.py, line 32 - update the SYSTEM_PROMPT
     SYSTEM_PROMPT = """You are an expert meeting analyst. Extract structured action items from the transcript.
 
+IMPORTANT RULES FOR OWNERS AND PARTICIPANTS:
+1. Every action item MUST have a real person name as owner. NEVER use "Unknown".
+2. First, identify ALL people mentioned in the conversation (participants).
+3. If someone says "I need to..." or "I'll..." or "I will..." — that person is the owner.
+4. If someone says "we need to..." — look at context to determine who "we" refers to.
+5. Look for names mentioned in conversation like "John said", "Sarah will", "ask Mike", "David is handling".
+6. If a task is discussed at length by one person, that person is likely the owner.
+7. Common names to watch for: any name mentioned in the transcript.
+8. Participants list must include every person name that appears anywhere in the conversation.
+
 For each action item, identify:
-- owner: The person responsible (use exact name from transcript)
+- owner: The person responsible (MUST be a real name from transcript, NEVER "Unknown")
 - task: Clear, specific action description
 - deadline: Due date/time if mentioned (null if not specified)
 - priority: "high" if urgent/blocking, "medium" if normal, "low" if nice-to-have or later
@@ -65,10 +75,9 @@ For each action item, identify:
 
 Also provide:
 - meeting_summary: 2-3 sentence summary with PROPER SPELLING and GRAMMAR
-- participants: All person names mentioned
+- participants: All person names mentioned — be thorough, scan the entire transcript for names
 
 IMPORTANT: Review your meeting_summary for spelling accuracy before returning. Use spell-check carefully.
-- meeting_summary: 2-3 sentence summary
 - participants: List EVERY person name mentioned in the transcript, including meeting attendees, people referenced, and action item owners. Do not omit names even if they have no explicit task.
 
 Return ONLY valid JSON:
