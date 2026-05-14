@@ -18,7 +18,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      <div className="border-2 border-dashed border-[#E5E7EB] rounded-2xl p-12 flex flex-col items-center justify-center gap-4 hover:border-[#F26A21]/40 hover:bg-[#F26A21]/[0.03] transition-all group cursor-pointer relative">
+      <div className="group relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-[#E5E7EB] bg-white p-12 transition-all hover:border-[#F26A21]/40 hover:bg-[#F26A21]/[0.03]">
         <input
           type="file"
           accept="video/*"
@@ -28,14 +28,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
           }}
           className="absolute inset-0 opacity-0 cursor-pointer"
         />
-        <div className="w-16 h-16 rounded-2xl bg-[#F26A21]/10 flex items-center justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F26A21]/10">
           <FileVideo size={32} className="text-[#F26A21]" />
         </div>
         <div className="text-center">
-          <p className="text-[#0B1633] font-semibold text-base">
+          <p className="text-base font-semibold text-[#0B1633]">
             {file ? file.name : "Drag and drop or click to upload"}
           </p>
-          <p className="text-sm text-[#6B7280] mt-1">
+          <p className="mt-1 text-sm text-[#6B7280]">
             MP4, MKV, AVI, MOV up to 500MB
           </p>
         </div>
@@ -43,7 +43,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <button
         onClick={onSubmit}
         disabled={!file || disabled || isProcessing}
-        className="w-full bg-[#F26A21] hover:bg-[#E55D1B] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] text-white font-semibold py-4 px-6 rounded-full transition-all duration-200 flex items-center justify-center gap-2 shadow-button disabled:shadow-none text-base"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F26A21] px-6 py-4 text-base font-semibold text-white shadow-button transition-all duration-200 hover:bg-[#E55D1B] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] disabled:shadow-none"
       >
         {isProcessing ? (
           <>

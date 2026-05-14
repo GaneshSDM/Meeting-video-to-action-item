@@ -7,34 +7,44 @@ class CalendarService:
     """Simple wrapper around Google Calendar API. Stub methods for Teams can be added later."""
 
     def __init__(self):
-        # Load service account credentials from env var
+        self.service = None
+        self.calendar_id = "primary"
+        self.connected = False
+
         cred_path = os.getenv("GOOGLE_SERVICE_ACCOUNT")
         if not cred_path or not os.path.isfile(cred_path):
-            raise RuntimeError("GOOGLE_SERVICE_ACCOUNT env var must point to a valid service account JSON file")
-        scopes = ["https://www.googleapis.com/auth/calendar"]
-        credentials = service_account.Credentials.from_service_account_file(cred_path, scopes=scopes)
-        self.service = build("calendar", "v3", credentials=credentials)
-        # Use a default calendar (primary)
-        self.calendar_id = "primary"
+            return
+
+        try:
+            scopes = ["https://www.googleapis.com/auth/calendar"]
+            credentials = service_account.Credentials.from_service_account_file(cred_path, scopes=scopes)
+            self.service = build("calendar", "v3", credentials=credentials)
+            self.connected = True
+        except Exception:
+            self.service = None
 
     # ---------- Google Calendar methods ----------
+    def _require(self):
+        if not self.connected or not self.service:
+            raise RuntimeError("Google Calendar is not connected")
+
     def create_event(self, event_body: Dict[str, Any], recurrence: Optional[str] = None) -> str:
-        """Create an event and return its Google event ID. If recurrence is provided, add RRULE."""
+        self._require()
         if recurrence:
             event_body.setdefault("recurrence", []).append(recurrence)
         created = self.service.events().insert(calendarId=self.calendar_id, body=event_body).execute()
         return created.get("id")
 
     def update_event(self, event_id: str, updates: Dict[str, Any]) -> None:
-        """Patch an existing event with the provided fields."""
+        self._require()
         self.service.events().patch(calendarId=self.calendar_id, eventId=event_id, body=updates).execute()
 
     def delete_event(self, event_id: str) -> None:
-        """Delete the event identified by event_id."""
+        self._require()
         self.service.events().delete(calendarId=self.calendar_id, eventId=event_id).execute()
 
     def list_events(self, time_min: str = None, time_max: str = None) -> List[Dict[str, Any]]:
-        """Return a list of events in the given time window (ISO strings)."""
+        self._require()
         params = {"calendarId": self.calendar_id, "singleEvents": True, "orderBy": "startTime"}
         if time_min:
             params["timeMin"] = time_min

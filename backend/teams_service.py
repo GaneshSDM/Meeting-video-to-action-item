@@ -15,15 +15,16 @@ class TeamsService:
     def __init__(self):
         self._token = os.getenv("TEAMS_TOKEN")
         if not self._token:
-            client_id = os.getenv("TEAMS_CLIENT_ID")
-            tenant_id = os.getenv("TEAMS_TENANT_ID")
-            client_secret = os.getenv("TEAMS_CLIENT_SECRET")
+            # Accept both TEAMS_* and MS_* naming conventions
+            client_id = os.getenv("TEAMS_CLIENT_ID") or os.getenv("MS_CLIENT_ID")
+            tenant_id = os.getenv("TEAMS_TENANT_ID") or os.getenv("MS_TENANT_ID")
+            client_secret = os.getenv("TEAMS_CLIENT_SECRET") or os.getenv("MS_CLIENT_SECRET")
             if all([client_id, tenant_id, client_secret]):
                 self._token = self._fetch_token(client_id, tenant_id, client_secret)
             else:
                 raise RuntimeError(
                     "Microsoft Teams credentials not configured in env vars. "
-                    "Set TEAMS_TOKEN or TEAMS_CLIENT_ID + TEAMS_TENANT_ID + TEAMS_CLIENT_SECRET."
+                    "Set TEAMS_TOKEN or TEAMS_CLIENT_ID/MS_CLIENT_ID + TEAMS_TENANT_ID/MS_TENANT_ID + TEAMS_CLIENT_SECRET/MS_CLIENT_SECRET."
                 )
         self._headers = {
             "Authorization": f"Bearer {self._token}",

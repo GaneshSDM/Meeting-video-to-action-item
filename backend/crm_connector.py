@@ -1,5 +1,7 @@
+import datetime
 import json
 import os
+import uuid
 from typing import List, Optional
 from .models import ActionItem, AnalysisOutput
 from .calendar_service import CalendarService
@@ -13,12 +15,35 @@ class CRMConnector:
         self._teams_service = None
 
     def update_action_items(self, analysis: AnalysisOutput) -> bool:
-        """Create calendar events for each action item and log locally."""
+        """Create calendar events for each action item and log to database."""
         log_path = "action_items_log.jsonl"
         for item in analysis.action_items:
             self._create_event(item)
+
+        # Persist to Supabase
+        try:
+            from .database import save_meeting
+            action_items_dicts = []
+            for item in analysis.action_items:
+                d = item.model_dump() if hasattr(item, "model_dump") else item
+                action_items_dicts.append(d)
+            save_meeting(
+                job_id=str(uuid.uuid4()),
+                title=analysis.meeting_summary or "Untitled Meeting",
+                team="dev-team-001",
+                source="Upload",
+                transcript=analysis.transcript,
+                meeting_summary=analysis.meeting_summary,
+                participants=analysis.participants,
+                action_items=action_items_dicts,
+            )
+        except Exception as e:
+            print(f"Database save failed, falling back to JSONL: {e}")
+
+        # Fallback JSONL log
         entry = analysis.model_dump()
         entry["crm_type"] = self.crm_type
+        entry["created_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, default=str) + "\n")
         print(f"Action items logged to {log_path}")

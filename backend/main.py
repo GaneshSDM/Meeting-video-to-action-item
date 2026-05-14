@@ -22,6 +22,25 @@ UPLOAD_DIR = "videos"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+@app.on_event("startup")
+async def startup():
+    try:
+        from .database import init_db
+        init_db()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Database init failed (will use JSONL fallback): {e}")
+
+    try:
+        from .scheduler import start as sched_start
+        if sched_start():
+            print("Autonomous scheduler started")
+        else:
+            print("Autonomous mode not enabled (set ENABLE_AUTONOMOUS=true)")
+    except Exception as e:
+        print(f"Scheduler init failed: {e}")
+
+
 def _cleanup_old_files(exclude_paths: set[str] | None = None) -> None:
     exclude_paths = {os.path.abspath(p) for p in (exclude_paths or set())}
     for directory in ("videos", "audio", "audio_chunks", "transcripts"):
@@ -279,6 +298,306 @@ async def delete_event(event_id: str, job_id: str):
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"job_id": job_id, "deleted_event": event_id}, default=str) + "\n")
     return {"status": "deleted", "event_id": event_id}
+
+
+@app.get("/meetings")
+async def get_meetings():
+    """Return all meetings from database, with in-memory job fallback."""
+    meetings: list[dict] = []
+    seen_ids: set[str] = set()
+
+    # Primary: read from Supabase
+    try:
+        from .database import get_meetings as db_get_meetings
+        meetings = db_get_meetings()
+        for m in meetings:
+            seen_ids.add(m["job_id"])
+    except Exception as e:
+        print(f"Database meetings read failed: {e}")
+
+    # Fallback: JSONL log
+    if not meetings:
+        log_path = "action_items_log.jsonl"
+        if os.path.isfile(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                for idx, line in enumerate(f):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    action_items = entry.get("action_items", [])
+                    participants = entry.get("participants", [])
+                    log_job_id = entry.get("job_id") or f"log_{idx}"
+                    meetings.append({
+                        "job_id": log_job_id,
+                        "title": entry.get("meeting_summary", "Untitled Meeting")[:120],
+                        "team": "dev-team-001",
+                        "source": "Transcript",
+                        "tasks": len(action_items),
+                        "status": "Processed",
+                        "date": entry.get("created_at", "Unknown")[:10] if entry.get("created_at") else "Unknown",
+                        "participants": participants,
+                        "summary": entry.get("meeting_summary", ""),
+                    })
+                    seen_ids.add(log_job_id)
+
+    # Include in-progress/pending jobs from memory
+    for job_id, job in jobs.items():
+        if job_id in seen_ids:
+            continue
+        result = job.get("result")
+        action_items = result.action_items if result and hasattr(result, "action_items") else []
+        meetings.append({
+            "job_id": job_id,
+            "title": os.path.basename(job.get("file_path", "Meeting")),
+            "team": "dev-team-001",
+            "source": "Upload",
+            "tasks": len(action_items),
+            "status": "Processed" if job["status"] == "completed" else "Failed" if job["status"] == "failed" else "Processing",
+            "date": "Now",
+            "participants": result.participants if result and hasattr(result, "participants") else [],
+            "summary": result.meeting_summary if result and hasattr(result, "meeting_summary") else "",
+        })
+
+    return sorted(meetings, key=lambda m: m["date"], reverse=True)
+
+
+@app.get("/tasks")
+async def get_tasks():
+    """Return all action items across all completed meetings."""
+    try:
+        from .database import get_tasks as db_get_tasks
+        return db_get_tasks()
+    except Exception as e:
+        print(f"Database tasks read failed: {e}")
+
+    # Fallback to JSONL
+    all_tasks: list[dict] = []
+    log_path = "action_items_log.jsonl"
+    if os.path.isfile(log_path):
+        with open(log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                meeting_title = entry.get("meeting_summary", "Untitled")[:80]
+                for item in entry.get("action_items", []):
+                    owner = item.get("owner", "Unknown")
+                    initials = "".join([p[0] for p in owner.split()[:2]]).upper() if owner != "Unknown" else "??"
+                    task_title = item.get("task", "")
+                    task_owner = owner if owner != "Unknown" else None
+                    all_tasks.append({
+                        "id": str(abs(hash(f"{task_title}|{meeting_title}|{task_owner or 'unassigned'}")) % 10_000_000).zfill(7),
+                        "title": task_title,
+                        "meeting": meeting_title,
+                        "owner": task_owner,
+                        "initials": initials if owner != "Unknown" else None,
+                        "due": item.get("deadline"),
+                        "priority": item.get("priority", "medium").capitalize(),
+                        "confidence": item.get("confidence", 0.5),
+                        "context": item.get("context", ""),
+                        "status": "todo",
+                    })
+    return all_tasks
+
+
+@app.patch("/tasks/{task_id}")
+async def update_task_status(task_id: str, body: dict):
+    """Update a task's status (todo, progress, done)."""
+    new_status = body.get("status")
+    if new_status not in ("todo", "progress", "done"):
+        raise HTTPException(status_code=400, detail="Status must be todo, progress, or done")
+
+    try:
+        from .database import update_task_status as db_update
+        db_update(task_id, new_status)
+    except Exception as e:
+        print(f"Database task update failed: {e}")
+
+    return {"task_id": task_id, "status": new_status}
+
+
+@app.get("/dashboard")
+async def get_dashboard():
+    """Return aggregated dashboard metrics from database."""
+    try:
+        from .database import get_dashboard_stats
+        return get_dashboard_stats()
+    except Exception as e:
+        print(f"Database dashboard read failed: {e}")
+
+    # JSONL fallback
+    all_tasks_list: list[dict] = []
+    all_meetings: list[dict] = []
+    total_participants: set[str] = set()
+    log_path = "action_items_log.jsonl"
+    if os.path.isfile(log_path):
+        with open(log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                meeting_title = entry.get("meeting_summary", "Untitled")[:80]
+                for item in entry.get("action_items", []):
+                    all_tasks_list.append({"title": item.get("task", ""), "meeting": meeting_title, "owner": item.get("owner", "Unknown"), "priority": item.get("priority", "medium")})
+                for p in entry.get("participants", []):
+                    total_participants.add(p)
+                all_meetings.append({"title": meeting_title, "date": entry.get("created_at", "Unknown"), "tasks": len(entry.get("action_items", []))})
+
+    total_tasks = len(all_tasks_list)
+    high_priority = sum(1 for t in all_tasks_list if t["priority"] == "high")
+
+    return {
+        "total_tasks": total_tasks,
+        "in_progress": 0,
+        "completed": 0,
+        "overdue": high_priority,
+        "total_meetings": len(all_meetings),
+        "total_participants": len(total_participants),
+        "recent_meetings": sorted(all_meetings, key=lambda m: m["date"], reverse=True)[:5],
+        "activity": [
+            {"title": f"{total_tasks} total action items extracted", "time": "across all meetings"},
+            {"title": f"{len(all_meetings)} meetings processed", "time": "from video recordings"},
+            {"title": f"{len(total_participants)} unique participants", "time": "identified across meetings"},
+        ],
+    }
+
+
+@app.get("/analytics/timeseries")
+async def get_analytics_timeseries():
+    try:
+        from .database import get_analytics_timeseries
+        return get_analytics_timeseries()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics unavailable: {e}")
+
+
+@app.get("/analytics/summary")
+async def get_analytics_summary():
+    try:
+        from .database import get_dashboard_stats
+        stats = get_dashboard_stats()
+        return {
+            "tasksByPriority": {"high": stats["overdue"], "medium": stats["total_tasks"] - stats["overdue"] - stats["completed"], "low": 0},
+            "tasksByStatus": {"todo": stats["total_tasks"] - stats["in_progress"] - stats["completed"], "in_progress": stats["in_progress"], "done": stats["completed"]},
+            "completionRate": round((stats["completed"] / stats["total_tasks"] * 100)) if stats["total_tasks"] > 0 else 0,
+            "avgConfidence": 0,
+            "totalMeetings": stats["total_meetings"],
+            "totalParticipants": stats["total_participants"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics unavailable: {e}")
+
+
+@app.get("/integrations/status")
+async def get_integrations_status():
+    """Return connection status for all integrations."""
+
+    # Google Calendar
+    google_status = "not_configured"
+    google_detail = "Service account JSON not found. Set GOOGLE_SERVICE_ACCOUNT env var."
+    try:
+        from .calendar_service import CalendarService
+        cal = CalendarService()
+        if cal.connected:
+            google_status = "connected"
+            google_detail = "Google Calendar API connected via service account."
+        else:
+            google_status = "error"
+            google_detail = "Credentials found but connection failed. Check your service account JSON."
+    except Exception:
+        pass
+
+    # Microsoft Teams
+    teams_status = "not_configured"
+    teams_detail = "Azure AD credentials not set. Configure MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID."
+    if os.getenv("TEAMS_TOKEN") or (os.getenv("MS_CLIENT_ID") and os.getenv("MS_CLIENT_SECRET") and os.getenv("MS_TENANT_ID")):
+        try:
+            from .teams_service import TeamsService
+            teams = TeamsService()
+            teams_status = "connected"
+            teams_detail = "Microsoft Teams (Graph API) connected."
+        except Exception as e:
+            teams_status = "error"
+            teams_detail = f"Teams connection failed: {e}"
+
+    # SharePoint
+    sharepoint_status = "not_configured"
+    sharepoint_detail = "Azure AD credentials not set. Configure MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID."
+    if os.getenv("MS_CLIENT_ID") and os.getenv("MS_CLIENT_SECRET") and os.getenv("MS_TENANT_ID"):
+        sharepoint_status = "connected"
+        sharepoint_detail = "SharePoint (Graph API) connected."
+
+    return {
+        "google_calendar": {"status": google_status, "detail": google_detail},
+        "microsoft_teams": {"status": teams_status, "detail": teams_detail},
+        "sharepoint": {"status": sharepoint_status, "detail": sharepoint_detail},
+    }
+
+
+@app.get("/insights")
+async def get_insights():
+    """Return cached cross-meeting AI insights."""
+    try:
+        from .insights_service import CrossMeetingAnalyzer
+        analyzer = CrossMeetingAnalyzer()
+        return analyzer.get_or_refresh(force=False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insights unavailable: {e}")
+
+
+@app.post("/insights/refresh")
+async def refresh_insights():
+    """Force regeneration of cross-meeting AI insights."""
+    try:
+        from .insights_service import CrossMeetingAnalyzer
+        analyzer = CrossMeetingAnalyzer()
+        return analyzer.get_or_refresh(force=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insights refresh failed: {e}")
+
+
+@app.get("/notifications")
+async def get_notifications(unread_only: bool = False):
+    from .notification_service import get_all
+    return get_all(unread_only=unread_only)
+
+
+@app.patch("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str):
+    from .notification_service import mark_read
+    if not mark_read(notification_id):
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"id": notification_id, "read": True}
+
+
+@app.get("/autonomous/status")
+async def autonomous_status():
+    from .scheduler import get_status
+    return get_status()
+
+
+@app.post("/autonomous/toggle")
+async def autonomous_toggle():
+    from .scheduler import get_status, start, stop
+    current = get_status()
+    if current["running"]:
+        stop()
+        return {"running": False, "message": "Autonomous mode stopped"}
+    else:
+        started = start()
+        return {"running": started, "message": "Autonomous mode started" if started else "Set ENABLE_AUTONOMOUS=true to enable"}
 
 
 if __name__ == "__main__":
