@@ -10,9 +10,12 @@ class CalendarService:
         self.service = None
         self.calendar_id = "primary"
         self.connected = False
+        self.error = None
 
-        cred_path = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+        cred_path = os.getenv("GOOGLE_SERVICE_ACCOUNT", "").strip().strip('"').strip("'")
         if not cred_path or not os.path.isfile(cred_path):
+            if cred_path:
+                self.error = f"Service account file not found at: {cred_path}"
             return
 
         try:
@@ -20,7 +23,8 @@ class CalendarService:
             credentials = service_account.Credentials.from_service_account_file(cred_path, scopes=scopes)
             self.service = build("calendar", "v3", credentials=credentials)
             self.connected = True
-        except Exception:
+        except Exception as e:
+            self.error = str(e)
             self.service = None
 
     # ---------- Google Calendar methods ----------

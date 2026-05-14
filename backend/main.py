@@ -513,9 +513,12 @@ async def get_integrations_status():
         if cal.connected:
             google_status = "connected"
             google_detail = "Google Calendar API connected via service account."
-        else:
+        elif cal.error:
             google_status = "error"
-            google_detail = "Credentials found but connection failed. Check your service account JSON."
+            google_detail = cal.error
+        else:
+            google_status = "not_configured"
+            google_detail = "Service account JSON not found. Set GOOGLE_SERVICE_ACCOUNT env var."
     except Exception:
         pass
 
