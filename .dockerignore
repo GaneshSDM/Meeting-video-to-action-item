@@ -1,15 +1,38 @@
+# Dependencies
 node_modules
-dist
-.git
+frontend/node_modules
 __pycache__
 *.pyc
 .vite
-videos/*
-audio/*
-audio_chunks/*
-transcripts/*
-watch/*
-frontend/node_modules
+
+# Build output
+dist
 frontend/dist
+
+# Git
+.git
+.gitignore
+
+# Media & data
+videos
+audio
+audio_chunks
+transcripts
+watch
+*.mp4
+*.mp3
+*.wav
+*.webm
+
+# Secrets
+.env
 .env.local
+service-account.json
+
+# Logs
 *.log
+action_items_log.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
